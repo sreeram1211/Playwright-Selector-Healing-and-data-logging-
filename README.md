@@ -153,9 +153,63 @@ npm test
 # Integration tests (requires browser)
 npm run test:integration
 
+# E2E tests against MakeMyTrip.com (requires browser)
+npm run test:e2e
+
+# E2E tests in headed mode (watch the browser)
+npm run test:e2e:headed
+
 # Type checking only
 npm run lint
 ```
+
+## E2E Testing: MakeMyTrip.com
+
+The `tests/e2e/` directory contains a full end-to-end test suite targeting [MakeMyTrip.com](https://www.makemytrip.com) — a production travel booking site built on React. It demonstrates every feature of The Resilient Auditor on a real-world, frequently-changing website.
+
+### Test Cases (20 tests)
+
+| ID | Suite | Description |
+|----|-------|-------------|
+| TC-01 | Homepage | Load homepage, run initial a11y scan |
+| TC-02 | Homepage | Navigate between trip-type tabs (flights, hotels, trains) |
+| TC-03 | Homepage | Verify core navigation elements are present |
+| TC-04 | Flight Search | Select "From" city with autocomplete |
+| TC-05 | Flight Search | Select "To" city with autocomplete |
+| TC-06 | Flight Search | Complete flight search (Delhi → Mumbai) |
+| TC-07 | Flight Search | Round-trip selection with return date |
+| TC-08 | Flight Search | Open travellers/class picker, select business |
+| TC-09 | Flight Results | Search and interact with flight results |
+| TC-10 | Flight Results | Apply "Non Stop" filter |
+| TC-11 | Hotel Search | Search for hotels in Goa |
+| TC-12 | Hotel Search | Open rooms & guests picker |
+| TC-13 | A11y Audit | Full-page accessibility audit on homepage |
+| TC-14 | A11y Audit | A11y audit across multiple navigation actions |
+| TC-15 | A11y Audit | A11y audit on flight search results page |
+| TC-16 | Self-Healing | Healing from intentionally stale selectors |
+| TC-17 | Self-Healing | Healing across a full user journey |
+| TC-18 | Edge Cases | Handle page with heavy JS loading |
+| TC-19 | Edge Cases | Navigate to a deep link |
+| TC-20 | Edge Cases | Rapid sequential actions with a11y scanning |
+
+### E2E Architecture
+
+```
+tests/e2e/
+  makemytrip.selectors.ts  # Known selector map (multiple generations per element)
+  makemytrip.healer.ts     # Hybrid healer: rule-based fallbacks + optional AI
+  makemytrip.e2e.spec.ts   # 20 test cases across 7 suites
+```
+
+**Hybrid healing strategy:**
+
+1. **Rule-based (instant, no API)** — When a selector fails, the healer checks a curated map of known MakeMyTrip selectors across different site versions. If the failed selector is in the map, it returns the next candidate that appears to exist in the current HTML.
+
+2. **AI fallback (optional)** — If no rule-based match is found and an `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` is set, the healer sends the page HTML to the AI for open-ended DOM analysis.
+
+3. **Generic heuristics** — For completely unknown selectors, falls back to `data-testid` or class wildcard patterns.
+
+This means the E2E tests work **without any API key** — the rule-based layer handles common selector renames. Add an API key to unlock AI healing for novel DOM changes.
 
 ## Reporter Output
 

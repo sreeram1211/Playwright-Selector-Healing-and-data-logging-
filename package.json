@@ -9,6 +9,8 @@
     "test": "tsc --noEmit && node --import tsx --no-warnings --test tests/unit/*.test.ts",
     "test:unit": "node --import tsx --no-warnings --test tests/unit/*.test.ts",
     "test:integration": "npx playwright test --project=example",
+    "test:e2e": "npx playwright test --project=e2e",
+    "test:e2e:headed": "npx playwright test --project=e2e --headed",
     "lint": "tsc --noEmit"
   },
   "keywords": [
