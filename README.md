@@ -25,11 +25,15 @@ src/
   accessibility-scanner.ts # axe-core wrapper
   resilient-page.ts      # ResilientPage class (core logic)
   fixture.ts             # Playwright fixture definition
+  mcp-connection.ts      # MCP server lifecycle and client wrapper
+  mcp-page.ts            # ResilientMCPPage (MCP + self-healing + a11y)
+  mcp-fixture.ts         # Playwright fixture for MCP integration
   reporter.ts            # Console + JSON reporter
   index.ts               # Public API re-exports
 tests/
   unit/                  # Unit tests (Node test runner, no browser needed)
   example/               # Integration tests (require browser + optional API key)
+  e2e/                   # E2E tests against MakeMyTrip.com
 ```
 
 ## Setup
@@ -125,6 +129,124 @@ test.use({
     ai: false,    // only accessibility scanning, no healing
   },
 });
+```
+
+## Playwright MCP Integration
+
+The Resilient Auditor integrates with [@playwright/mcp](https://github.com/microsoft/playwright-mcp) — Microsoft's Model Context Protocol server that provides 70+ browser automation tools operating on structured accessibility snapshots instead of raw HTML.
+
+### Why MCP?
+
+| Feature | Traditional Playwright | With MCP |
+|---------|----------------------|----------|
+| Element targeting | CSS/XPath selectors | Accessibility snapshot refs |
+| Page representation | Raw HTML (large) | Structured a11y tree (2-5KB) |
+| AI healing input | Full HTML dump | Compact, structured data |
+| Available tools | Playwright API | 70+ MCP tools |
+| State management | Per-test | Persistent sessions possible |
+
+### Quick Start with MCP
+
+```typescript
+import { test, expect } from './src/mcp-fixture';
+
+test('MCP-powered test', async ({ resilientMCPPage }) => {
+  // MCP auto-connects on fixture setup
+
+  // Navigate using MCP browser
+  await resilientMCPPage.mcpGoto('https://example.com');
+
+  // Get structured accessibility snapshot
+  const snapshot = await resilientMCPPage.mcpSnapshot();
+  console.log(snapshot);
+
+  // Click using element ref from snapshot
+  await resilientMCPPage.mcpClick('ref=heading-1');
+
+  // Fill forms
+  await resilientMCPPage.mcpFill([
+    { ref: 'ref=email-input', value: 'user@test.com' },
+    { ref: 'ref=password-input', value: 'secret' },
+  ]);
+
+  // Evaluate JS in the MCP browser
+  const result = await resilientMCPPage.mcpEvaluate('document.title');
+
+  // You can ALSO use traditional self-healing Playwright actions
+  await resilientMCPPage.click('#submit');
+  const text = await resilientMCPPage.textContent('h1');
+});
+```
+
+### MCP Configuration
+
+```typescript
+test.use({
+  mcpConfig: {
+    enabled: true,                    // Enable MCP (default: false)
+    browserName: 'chromium',          // 'chromium' | 'firefox' | 'webkit'
+    headless: true,                   // Run headless
+    viewport: { width: 1280, height: 720 },
+    capabilities: [                   // MCP tool capabilities to enable
+      'core',
+      'core-input',
+      'core-navigation',
+      'core-tabs',
+      'testing',                      // Adds assertion tools
+      // 'vision',                    // Adds coordinate-based interaction
+      // 'pdf',                       // Adds PDF generation
+      // 'tracing',                   // Adds trace recording
+    ],
+    useSnapshotsForHealing: true,     // Use a11y snapshots for AI healing
+    testIdAttribute: 'data-testid',   // Custom test ID attribute
+    network: {
+      allowedOrigins: ['https://example.com'],
+    },
+  },
+});
+```
+
+### MCP Methods
+
+The `resilientMCPPage` fixture provides all `resilientPage` methods plus:
+
+| Method | Description |
+|--------|-------------|
+| `mcpGoto(url)` | Navigate via MCP + a11y scan |
+| `mcpSnapshot()` | Get accessibility tree snapshot |
+| `mcpClick(ref)` | Click element by ref + a11y scan |
+| `mcpFill(fields)` | Fill form fields by ref + a11y scan |
+| `mcpType(text)` | Type into focused element |
+| `mcpPressKey(key)` | Press keyboard key |
+| `mcpHover(ref)` | Hover over element |
+| `mcpSelectOption(ref, values)` | Select dropdown option |
+| `mcpScreenshot()` | Take screenshot |
+| `mcpEvaluate(expression)` | Execute JavaScript |
+| `mcpWaitFor(textOrTime)` | Wait for text or timeout |
+| `mcpGoBack()` | Navigate back |
+| `mcpConsoleMessages()` | Get console messages |
+| `mcpTabs()` | List browser tabs |
+| `mcpCallTool(name, args)` | Call any MCP tool directly |
+| `mcpListTools()` | List all available tools |
+
+### Using MCPConnection Standalone
+
+You can also use the MCP connection manager directly without the fixture:
+
+```typescript
+import { MCPConnection } from './src/mcp-connection';
+
+const mcp = new MCPConnection({
+  enabled: true,
+  browserName: 'chromium',
+  headless: true,
+});
+
+await mcp.connect();
+await mcp.navigate('https://example.com');
+const snapshot = await mcp.snapshot();
+await mcp.click('ref=submit-btn');
+await mcp.disconnect();
 ```
 
 ## Available Methods

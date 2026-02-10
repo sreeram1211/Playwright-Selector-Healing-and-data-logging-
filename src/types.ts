@@ -125,6 +125,73 @@ export interface AIHealingService {
   readonly providerName: string;
 }
 
+// ---------------------------------------------------------------------------
+// MCP configuration
+// ---------------------------------------------------------------------------
+
+/** Capability flags for the Playwright MCP server. */
+export type MCPToolCapability =
+  | 'core'
+  | 'core-input'
+  | 'core-navigation'
+  | 'core-tabs'
+  | 'core-install'
+  | 'vision'
+  | 'pdf'
+  | 'testing'
+  | 'tracing';
+
+/** Configuration for the Playwright MCP integration. */
+export interface MCPConfig {
+  /** Whether to enable MCP. Defaults to false. */
+  enabled: boolean;
+  /** Browser to launch. Defaults to 'chromium'. */
+  browserName?: 'chromium' | 'firefox' | 'webkit';
+  /** Run headless. Defaults to true. */
+  headless?: boolean;
+  /** Viewport size. */
+  viewport?: { width: number; height: number };
+  /** Which MCP tool capabilities to enable. */
+  capabilities?: MCPToolCapability[];
+  /** Whether to use accessibility snapshots instead of raw HTML for healing. */
+  useSnapshotsForHealing?: boolean;
+  /** Custom test ID attribute (e.g., "data-cy"). Defaults to "data-testid". */
+  testIdAttribute?: string;
+  /** Network origin filtering. */
+  network?: {
+    allowedOrigins?: string[];
+    blockedOrigins?: string[];
+  };
+  /** Output directory for traces / session data. */
+  outputDir?: string;
+}
+
+/** Default MCP configuration values. */
+export const DEFAULT_MCP_CONFIG: Required<Omit<MCPConfig, 'network' | 'outputDir'>> & {
+  network?: MCPConfig['network'];
+  outputDir?: string;
+} = {
+  enabled: false,
+  browserName: 'chromium',
+  headless: true,
+  viewport: { width: 1280, height: 720 },
+  capabilities: ['core', 'core-input', 'core-navigation', 'core-tabs'],
+  useSnapshotsForHealing: true,
+  testIdAttribute: 'data-testid',
+};
+
+/** Result returned by an MCP tool call. */
+export interface MCPToolResult {
+  /** The tool name that was called. */
+  toolName: string;
+  /** Whether the call succeeded. */
+  success: boolean;
+  /** Text content items from the response. */
+  content: Array<{ type: string; text?: string; data?: string; mimeType?: string }>;
+  /** Raw result object. */
+  raw: unknown;
+}
+
 /**
  * Minimal subset of the Playwright Page interface used by the auditor.
  * This allows testing without importing Playwright directly.
